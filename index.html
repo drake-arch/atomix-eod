@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomix EOD Reporting</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.6s ease-out;
+    }
+  </style>
+</head>
+<body class="bg-[#101314] text-[#EDEFED]">
+  <div id="app"></div>
+
+  <script>
+    const QUESTION_SETS = {
+      'Outbound 1st': [
+        { key: 'headcount', label: 'Headcount', type: 'number', required: true },
+        { key: 'callins_count', label: 'How many call-ins?', type: 'number', required: true },
+        { key: 'callins_who', label: 'Who called in?', type: 'text', required: false },
+        { key: 'issues', label: 'What issues do we have?', type: 'textarea', required: false },
+        { key: 'wins', label: 'What wins did we have?', type: 'textarea', required: false },
+        { key: 'orders_shipped', label: 'How many orders did we ship?', type: 'number', required: true },
+        { key: 'out_of_sla', label: 'Anything out of SLA?', type: 'yesno', required: true },
+        { key: 'out_of_sla_details', label: 'SLA Details', type: 'textarea', required: false, showIf: { key: 'out_of_sla', value: 'yes' } }
+      ],
+      'Outbound 2nd': [
+        { key: 'headcount', label: 'Headcount', type: 'number', required: true },
+        { key: 'callins_count', label: 'How many call-ins?', type: 'number', required: true },
+        { key: 'callins_who', label: 'Who called in?', type: 'text', required: false },
+        { key: 'issues', label: 'What issues do we have?', type: 'textarea', required: false },
+        { key: 'wins', label: 'What wins did we have?', type: 'textarea', required: false },
+        { key: 'orders_shipped', label: 'How many orders did we ship?', type: 'number', required: true },
+        { key: 'out_of_sla', label: 'Anything out of SLA?', type: 'yesno', required: true },
+        { key: 'out_of_sla_details', label: 'SLA Details', type: 'textarea', required: false, showIf: { key: 'out_of_sla', value: 'yes' } },
+        { key: 'all_carriers_picked_up', label: 'Did all carriers pick up?', type: 'yesno', required: true },
+        { key: 'carrier_details', label: 'Carrier Details', type: 'textarea', required: false, showIf: { key: 'all_carriers_picked_up', value: 'no' } }
+      ],
+      'Inventory': [
+        { key: 'headcount', label: 'Headcount', type: 'number', required: true },
+        { key: 'callins_count', label: 'How many call-ins?', type: 'number', required: true },
+        { key: 'callins_who', label: 'Who called in?', type: 'text', required: false },
+        { key: 'issues', label: 'What issues do we have?', type: 'textarea', required: false },
+        { key: 'wins', label: 'What wins did we have?', type: 'textarea', required: false }
+      ],
+      'Inbound': [
+        { key: 'headcount', label: 'Headcount', type: 'number', required: true },
+        { key: 'callins_count', label: 'How many call-ins?', type: 'number', required: true },
+        { key: 'callins_who', label: 'Who called in?', type: 'text', required: false },
+        { key: 'issues', label: 'What issues do we have?', type: 'textarea', required: false },
+        { key: 'wins', label: 'What wins did we have?', type: 'textarea', required: false },
+        { key: 'inbounds_today', label: 'How many inbounds today?', type: 'number', required: true },
+        { key: 'out_of_sla', label: 'Anything out of SLA?', type: 'yesno', required: true },
+        { key: 'out_of_sla_details', label: 'SLA Details', type: 'textarea', required: false, showIf: { key: 'out_of_sla', value: 'yes' } },
+        { key: 'returns_today', label: 'How many returns today?', type: 'number', required: true }
+      ],
+      'Special Projects': [
+        { key: 'headcount', label: 'Headcount', type: 'number', required: true },
+        { key: 'callins_count', label: 'How many call-ins?', type: 'number', required: true },
+        { key: 'callins_who', label: 'Who called in?', type: 'text', required: false },
+        { key: 'issues', label: 'What issues do we have?', type: 'textarea', required: false },
+        { key: 'wins', label: 'What wins did we have?', type: 'textarea', required: false },
+        { key: 'projects_completed', label: 'How many projects completed?', type: 'number', required: true },
+        { key: 'b2b_retail_orders_shipped', label: 'How many B2B/Retail orders shipped?', type: 'number', required: true },
+        { key: 'kits_completed', label: 'How many kits complete?', type: 'number', required: true },
+        { key: 'errors_reported', label: 'How many errors reported?', type: 'number', required: true }
+      ],
+      'Dedicated Inventory': [
+        { key: 'headcount', label: 'Headcount', type: 'number', required: true },
+        { key: 'callins_count', label: 'How many call-ins?', type: 'number', required: true },
+        { key: 'callins_who', label: 'Who called in?', type: 'text', required: false },
+        { key: 'issues', label: 'What issues do we have?', type: 'textarea', required: false },
+        { key: 'wins', label: 'What wins did we have?', type: 'textarea', required: false },
+        { key: 'pallets_moved', label: 'How many pallets were moved today?', type: 'number', required: true },
+        { key: 'skus_counted', label: 'How many SKUs were counted today?', type: 'number', required: true },
+        { key: 'dedicated_issues', label: 'Any issues?', type: 'textarea', required: false }
+      ]
+    };
+
+    let state = {
+      stage: 'hero',
+      name: '',
+      reportDate: new Date().toISOString().split('T')[0],
+      department: '',
+      formData: {},
+      isSubmitting: false,
+      error: ''
+    };
+
+    function triggerExplosion() {
+      const canvas = document.createElement('canvas');
+      canvas.style.position = 'fixed';
+      canvas.style.top = '0';
+      canvas.style.left = '0';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.pointerEvents = 'none';
+      canvas.style.zIndex = '9999';
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      document.body.appendChild(canvas);
+
+      const ctx = canvas.getContext('2d');
+      const particles = [];
+      const colors = ['#A3F3C5', '#0D2D53', '#EDEFED'];
+
+      for (let i = 0; i < 100; i++) {
+        particles.push({
+          x: window.innerWidth / 2,
+          y: window.innerHeight * 0.6,
+          vx: (Math.random() - 0.5) * 10,
+          vy: (Math.random() - 0.5) * 10 - 5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          size: Math.random() * 4 + 2,
+          life: 1
+        });
+      }
+
+      const animate = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        particles.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.3;
+          p.life -= 0.015;
+          
+          if (p.life > 0) {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+
+        if (particles.some(p => p.life > 0)) {
+          requestAnimationFrame(animate);
+        } else {
+          document.body.removeChild(canvas);
+        }
+      };
+
+      animate();
+    }
+
+    function handleDepartmentSelect(dept) {
+      state.department = dept;
+      triggerExplosion();
+      setTimeout(() => {
+        state.stage = 'questions';
+        state.formData = {};
+        render();
+      }, 500);
+    }
+
+    function handleFieldChange(key, value) {
+      state.formData[key] = value;
+      render();
+    }
+
+    function isFormValid() {
+      const questions = QUESTION_SETS[state.department] || [];
+      return questions.every(q => {
+        if (!q.required) return true;
+        if (q.showIf) {
+          const conditionMet = state.formData[q.showIf.key] === q.showIf.value;
+          if (!conditionMet) return true;
+        }
+        const value = state.formData[q.key];
+        return value !== undefined && value !== '' && value !== null;
+      });
+    }
+
+    async function handleSubmit() {
+      state.isSubmitting = true;
+      state.error = '';
+      render();
+      
+      const submitData = {
+        timestamp: new Date().toISOString(),
+        name: state.name,
+        report_date: state.reportDate,
+        department: state.department,
+        ...state.formData
+      };
+
+      try {
+        // Replace with your Google Apps Script URL
+        const SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+        
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(submitData)
+        });
+
+        state.stage = 'success';
+        triggerExplosion();
+      } catch (err) {
+        state.error = 'Failed to submit report. Please try again.';
+        console.error(err);
+      } finally {
+        state.isSubmitting = false;
+        render();
+      }
+    }
+
+    function resetForm() {
+      state = {
+        stage: 'namedate',
+        name: '',
+        reportDate: new Date().toISOString().split('T')[0],
+        department: '',
+        formData: {},
+        isSubmitting: false,
+        error: ''
+      };
+      render();
+    }
+
+    function renderField(question) {
+      if (question.showIf) {
+        const conditionMet = state.formData[question.showIf.key] === question.showIf.value;
+        if (!conditionMet) return '';
+      }
+
+      const value = state.formData[question.key] || '';
+
+      switch (question.type) {
+        case 'number':
+          return `<input type="number" value="${value}" oninput="handleFieldChange('${question.key}', this.value)" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-lg px-4 py-3 text-[#EDEFED] focus:outline-none focus:ring-2 focus:ring-[#A3F3C5] focus:border-transparent transition-all" ${question.required ? 'required' : ''}>`;
+        case 'text':
+          return `<input type="text" value="${value}" oninput="handleFieldChange('${question.key}', this.value)" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-lg px-4 py-3 text-[#EDEFED] focus:outline-none focus:ring-2 focus:ring-[#A3F3C5] focus:border-transparent transition-all" ${question.required ? 'required' : ''}>`;
+        case 'textarea':
+          return `<textarea oninput="handleFieldChange('${question.key}', this.value)" rows="4" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-lg px-4 py-3 text-[#EDEFED] focus:outline-none focus:ring-2 focus:ring-[#A3F3C5] focus:border-transparent transition-all resize-none" ${question.required ? 'required' : ''}>${value}</textarea>`;
+        case 'yesno':
+          return `
+            <div class="flex gap-4">
+              <button type="button" onclick="handleFieldChange('${question.key}', 'yes')" class="flex-1 py-3 rounded-lg border-2 transition-all font-medium ${value === 'yes' ? 'bg-[#A3F3C5] text-[#101314] border-[#A3F3C5]' : 'bg-transparent text-[#EDEFED] border-[#2a2d2e] hover:border-[#A3F3C5]'}">Yes</button>
+              <button type="button" onclick="handleFieldChange('${question.key}', 'no')" class="flex-1 py-3 rounded-lg border-2 transition-all font-medium ${value === 'no' ? 'bg-[#A3F3C5] text-[#101314] border-[#A3F3C5]' : 'bg-transparent text-[#EDEFED] border-[#2a2d2e] hover:border-[#A3F3C5]'}">No</button>
+            </div>
+          `;
+        default:
+          return '';
+      }
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      
+      let content = '';
+
+      // Navigation
+      content += `
+        <nav class="border-b border-[#1f2223]">
+          <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="24" r="22" stroke="#A3F3C5" stroke-width="2" fill="none"/>
+                <path d="M24 14L32 19V29L24 34L16 29V19L24 14Z" stroke="#A3F3C5" stroke-width="2" fill="none" stroke-linejoin="bevel"/>
+                <path d="M24 14V24M24 24L32 19M24 24L16 19M24 24V34" stroke="#A3F3C5" stroke-width="2"/>
+              </svg>
+              <span class="text-xl font-light tracking-wide">atomix</span>
+            </div>
+            <div class="hidden lg:flex items-center gap-8 text-sm">
+              <button class="text-[#9D9F9E] hover:text-[#EDEFED] transition-colors">Fulfillment</button>
+              <button class="text-[#9D9F9E] hover:text-[#EDEFED] transition-colors">Services</button>
+              <button class="text-[#9D9F9E] hover:text-[#EDEFED] transition-colors">Technology</button>
+              <button class="text-[#9D9F9E] hover:text-[#EDEFED] transition-colors">Customers</button>
+              <button class="text-[#9D9F9E] hover:text-[#EDEFED] transition-colors">Resources</button>
+              <button class="text-[#9D9F9E] hover:text-[#EDEFED] transition-colors">Pricing</button>
+            </div>
+            <div class="flex items-center gap-4">
+              <button class="text-sm text-[#EDEFED] hover:text-[#A3F3C5] transition-colors">Log In</button>
+              <button class="bg-[#A3F3C5] text-[#101314] px-6 py-2.5 rounded-md text-sm font-medium hover:bg-[#8de0ad] transition-all">Get a quote →</button>
+            </div>
+          </div>
+        </nav>
+      `;
+
+      content += '<div class="max-w-6xl mx-auto px-6 py-20">';
+
+      if (state.stage === 'hero') {
+        content += `
+          <div class="text-left max-w-4xl space-y-8 animate-fadeIn">
+            <div class="inline-block px-4 py-1.5 bg-[#0D2D53]/50 text-[#A3F3C5] rounded text-xs font-medium tracking-wider uppercase mb-4">ECOMMERCE & RETAIL 3PL</div>
+            <h1 class="text-6xl md:text-7xl lg:text-8xl font-light leading-[1.1] tracking-tight">End of Day<br>Reporting</h1>
+            <p class="text-xl text-[#9D9F9E] max-w-3xl leading-relaxed font-light">Submit your daily department report to help leadership stay informed on operations, wins, and challenges across all teams.</p>
+            <div class="flex flex-col sm:flex-row gap-4 pt-8">
+              <button onclick="state.stage = 'namedate'; render();" class="bg-[#A3F3C5] text-[#101314] px-8 py-4 rounded-md text-base font-medium hover:bg-[#8de0ad] transition-all">Start Report</button>
+              <button class="border border-[#A3F3C5] text-[#A3F3C5] px-8 py-4 rounded-md text-base font-medium hover:bg-[#A3F3C5]/10 transition-all">Learn More</button>
+            </div>
+          </div>
+        `;
+      } else if (state.stage === 'namedate') {
+        content += `
+          <div class="max-w-lg mx-auto space-y-8 animate-fadeIn">
+            <h2 class="text-4xl font-light mb-12">Let's get started</h2>
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-[#9D9F9E] mb-2">Your Name</label>
+              <input type="text" value="${state.name}" oninput="state.name = this.value; render();" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-lg px-4 py-3.5 text-[#EDEFED] focus:outline-none focus:ring-2 focus:ring-[#A3F3C5] focus:border-transparent transition-all" placeholder="Enter your name">
+            </div>
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-[#9D9F9E] mb-2">Report Date</label>
+              <input type="date" value="${state.reportDate}" oninput="state.reportDate = this.value; render();" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-lg px-4 py-3.5 text-[#EDEFED] focus:outline-none focus:ring-2 focus:ring-[#A3F3C5] focus:border-transparent transition-all">
+            </div>
+            <button onclick="state.stage = 'department'; render();" ${!state.name || !state.reportDate ? 'disabled' : ''} class="w-full bg-[#A3F3C5] text-[#101314] py-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#8de0ad] transition-all mt-8">Continue</button>
+          </div>
+        `;
+      } else if (state.stage === 'department') {
+        content += `
+          <div class="max-w-lg mx-auto space-y-8 animate-fadeIn">
+            <h2 class="text-4xl font-light mb-12">Select Your Department</h2>
+            <div class="space-y-3">
+              ${Object.keys(QUESTION_SETS).map(dept => `
+                <button onclick="handleDepartmentSelect('${dept}')" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-lg px-6 py-5 text-left hover:border-[#A3F3C5] hover:bg-[#1e2223] transition-all group">
+                  <span class="text-lg font-light group-hover:text-[#A3F3C5] transition-colors">${dept}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else if (state.stage === 'questions') {
+        const questions = QUESTION_SETS[state.department] || [];
+        content += `
+          <div class="max-w-3xl mx-auto space-y-8 animate-fadeIn">
+            <div class="flex items-center justify-between mb-12">
+              <h2 class="text-4xl font-light">${state.department}</h2>
+              <button onclick="state.stage = 'department'; render();" class="text-[#9D9F9E] hover:text-[#A3F3C5] text-sm transition-colors">Change Department</button>
+            </div>
+            <div class="space-y-8">
+              ${questions.map(q => `
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium text-[#9D9F9E] mb-2">
+                    ${q.label}
+                    ${q.required ? '<span class="text-[#A3F3C5] ml-1">*</span>' : ''}
+                  </label>
+                  ${renderField(q)}
+                </div>
+              `).join('')}
+              ${state.error ? `<div class="bg-red-900/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg">${state.error}</div>` : ''}
+              <button onclick="handleSubmit()" ${!isFormValid() || state.isSubmitting ? 'disabled' : ''} class="w-full bg-[#A3F3C5] text-[#101314] py-4 rounded-lg font-medium text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#8de0ad] transition-all mt-8">
+                ${state.isSubmitting ? 'Submitting...' : 'Submit Report'}
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (state.stage === 'success') {
+        content += `
+          <div class="max-w-lg mx-auto text-center space-y-8 animate-fadeIn">
+            <div class="w-20 h-20 bg-[#A3F3C5] rounded-full mx-auto flex items-center justify-center">
+              <svg class="w-10 h-10 text-[#101314]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 class="text-4xl font-light">Report Submitted!</h2>
+            <p class="text-[#9D9F9E] text-lg font-light">Your ${state.department} report for ${new Date(state.reportDate).toLocaleDateString()} has been submitted successfully.</p>
+            <button onclick="resetForm()" class="bg-[#A3F3C5] text-[#101314] px-8 py-3.5 rounded-lg font-medium hover:bg-[#8de0ad] transition-all">Submit Another Report</button>
+          </div>
+        `;
+      }
+
+      content += '</div>';
+
+      app.innerHTML = content;
+    }
+
+    // Initial render
+    render();
+  </script>
+</body>
+</html>
