@@ -128,9 +128,6 @@
         { key: 'errors_reported', label: 'How many errors reported?', type: 'number', required: true }
       ],
       'Dedicated Inventory': [
-        { key: 'headcount', label: 'Headcount', type: 'number', required: true },
-        { key: 'callins_count', label: 'How many call-ins?', type: 'number', required: true },
-        { key: 'callins_who', label: 'Who called in?', type: 'text', required: false },
         { key: 'issues', label: 'What issues do we have?', type: 'textarea', required: false },
         { key: 'wins', label: 'What wins did we have?', type: 'textarea', required: false },
         { key: 'pallets_moved', label: 'How many pallets were moved today?', type: 'number', required: true },
@@ -145,6 +142,7 @@
       reportDate: new Date().toISOString().split('T')[0],
       department: '',
       formData: {},
+      laborData: {},
       isSubmitting: false,
       error: ''
     };
@@ -227,6 +225,35 @@
         const value = state.formData[q.key];
         return value !== undefined && value !== '' && value !== null;
       });
+    }
+
+    async function submitLaborData() {
+      try {
+        const LABOR_SCRIPT_URL = 'YOUR_DAILY_LOG_APPS_SCRIPT_URL_HERE';
+        
+        const laborPayload = {
+          date: state.reportDate,
+          atomix_hours: parseFloat(state.laborData.atomix_hours) || 0,
+          traba_hours: parseFloat(state.laborData.traba_hours) || 0,
+          onesource_hours: parseFloat(state.laborData.onesource_hours) || 0,
+          atomix_cost: parseFloat(state.laborData.atomix_cost) || 0,
+          traba_cost: parseFloat(state.laborData.traba_cost) || 0,
+          onesource_cost: parseFloat(state.laborData.onesource_cost) || 0,
+          orders_shipped: parseInt(state.laborData.orders_shipped_labor) || 0,
+          units_shipped: parseInt(state.laborData.units_shipped) || 0
+        };
+
+        await fetch(LABOR_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(laborPayload)
+        });
+      } catch (err) {
+        console.error('Labor data submission error:', err);
+      }
     }
 
     async function handleSubmit() {
@@ -335,18 +362,7 @@
             
             <div class="relative z-10 flex items-center justify-center min-h-screen px-6">
               <div class="max-w-5xl w-full text-center fade-in-up">
-                <!-- Logo -->
-                <div class="flex justify-center mb-8">
-                  <div class="glass rounded-2xl p-4 glow">
-                    <svg width="64" height="64" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="24" cy="24" r="22" stroke="#A3F3C5" stroke-width="2" fill="none"/>
-                      <path d="M24 14L32 19V29L24 34L16 29V19L24 14Z" stroke="#A3F3C5" stroke-width="2" fill="none" stroke-linejoin="bevel"/>
-                      <path d="M24 14V24M24 24L32 19M24 24L16 19M24 24V34" stroke="#A3F3C5" stroke-width="2"/>
-                    </svg>
-                  </div>
-                </div>
-                
-                <div class="inline-block px-6 py-2 glass rounded-full text-[#A3F3C5] text-sm font-medium tracking-widest uppercase mb-8 glow">
+                <div class="inline-block px-6 py-2 glass rounded-full text-[#A3F3C5] text-lg font-medium tracking-widest uppercase mb-8 glow">
                   Operations Reporting Platform
                 </div>
                 
@@ -386,6 +402,78 @@
                   
                   <button id="continue-btn" class="w-full bg-[#A3F3C5] text-[#101314] py-5 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#8de0ad] transition-all glow hover:scale-105 transform mt-10">
                     Continue →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (state.stage === 'labor') {
+        content = `
+          <div class="min-h-screen gradient-bg grid-bg px-6 py-20">
+            <div class="max-w-4xl mx-auto">
+              <div class="text-center mb-12 fade-in-up">
+                <h2 class="text-6xl font-light mb-4 bg-gradient-to-r from-white to-[#A3F3C5] bg-clip-text text-transparent">Labor Data</h2>
+                <p class="text-[#9D9F9E] text-lg">Enter yesterday's labor hours and costs</p>
+              </div>
+              
+              <div class="glass rounded-3xl p-10 scale-in">
+                <div class="space-y-8">
+                  <!-- Labor Hours Section -->
+                  <div>
+                    <h3 class="text-2xl font-light text-[#A3F3C5] mb-6">Labor Hours</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div class="space-y-3">
+                        <label class="block text-sm font-medium text-[#9D9F9E] uppercase tracking-wide">Atomix Hours</label>
+                        <input type="number" step="0.01" id="atomix_hours" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-xl px-5 py-4 text-[#EDEFED] input-focus transition-all" placeholder="0.00">
+                      </div>
+                      <div class="space-y-3">
+                        <label class="block text-sm font-medium text-[#9D9F9E] uppercase tracking-wide">Traba Hours</label>
+                        <input type="number" step="0.01" id="traba_hours" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-xl px-5 py-4 text-[#EDEFED] input-focus transition-all" placeholder="0.00">
+                      </div>
+                      <div class="space-y-3">
+                        <label class="block text-sm font-medium text-[#9D9F9E] uppercase tracking-wide">OneSource Hours</label>
+                        <input type="number" step="0.01" id="onesource_hours" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-xl px-5 py-4 text-[#EDEFED] input-focus transition-all" placeholder="0.00">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Labor Costs Section -->
+                  <div>
+                    <h3 class="text-2xl font-light text-[#A3F3C5] mb-6">Labor Costs</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div class="space-y-3">
+                        <label class="block text-sm font-medium text-[#9D9F9E] uppercase tracking-wide">Atomix Cost ($)</label>
+                        <input type="number" step="0.01" id="atomix_cost" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-xl px-5 py-4 text-[#EDEFED] input-focus transition-all" placeholder="0.00">
+                      </div>
+                      <div class="space-y-3">
+                        <label class="block text-sm font-medium text-[#9D9F9E] uppercase tracking-wide">Traba Cost ($)</label>
+                        <input type="number" step="0.01" id="traba_cost" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-xl px-5 py-4 text-[#EDEFED] input-focus transition-all" placeholder="0.00">
+                      </div>
+                      <div class="space-y-3">
+                        <label class="block text-sm font-medium text-[#9D9F9E] uppercase tracking-wide">OneSource Cost ($)</label>
+                        <input type="number" step="0.01" id="onesource_cost" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-xl px-5 py-4 text-[#EDEFED] input-focus transition-all" placeholder="0.00">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Shipment Data Section -->
+                  <div>
+                    <h3 class="text-2xl font-light text-[#A3F3C5] mb-6">Shipment Data</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div class="space-y-3">
+                        <label class="block text-sm font-medium text-[#9D9F9E] uppercase tracking-wide">Orders Shipped</label>
+                        <input type="number" id="orders_shipped_labor" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-xl px-5 py-4 text-[#EDEFED] input-focus transition-all" placeholder="0">
+                      </div>
+                      <div class="space-y-3">
+                        <label class="block text-sm font-medium text-[#9D9F9E] uppercase tracking-wide">Units Shipped</label>
+                        <input type="number" id="units_shipped" class="w-full bg-[#1a1d1e] border border-[#2a2d2e] rounded-xl px-5 py-4 text-[#EDEFED] input-focus transition-all" placeholder="0">
+                      </div>
+                    </div>
+                  </div>
+
+                  <button id="labor-continue-btn" class="w-full bg-[#A3F3C5] text-[#101314] py-5 rounded-xl font-semibold text-lg hover:bg-[#8de0ad] transition-all glow hover:scale-105 transform mt-10">
+                    Continue to Department Selection →
                   </button>
                 </div>
               </div>
@@ -482,6 +570,27 @@
       app.innerHTML = content;
 
       // Setup event listeners after render
+      if (state.stage === 'labor') {
+        const laborInputs = ['atomix_hours', 'traba_hours', 'onesource_hours', 'atomix_cost', 'traba_cost', 'onesource_cost', 'orders_shipped_labor', 'units_shipped'];
+        
+        laborInputs.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.addEventListener('input', (e) => {
+              state.laborData[id] = e.target.value;
+            });
+          }
+        });
+
+        const laborContinueBtn = document.getElementById('labor-continue-btn');
+        laborContinueBtn.addEventListener('click', async () => {
+          // Submit labor data to Daily Log sheet
+          await submitLaborData();
+          state.stage = 'department';
+          render();
+        });
+      }
+
       if (state.stage === 'namedate') {
         const nameInput = document.getElementById('name-input');
         const dateInput = document.getElementById('date-input');
@@ -498,7 +607,7 @@
         });
 
         continueBtn.addEventListener('click', () => {
-          state.stage = 'department';
+          state.stage = 'labor';
           render();
         });
 
